@@ -1,0 +1,537 @@
+<title>Control de Camiones</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: una columna tipo app móvil (máx. 480px), barra de faena arriba, pestañas por rol */
+:root{
+  --bg:#eef0ec; --surface:#ffffff; --surface-2:#f6f7f3; --line:#d5d9d0;
+  --fg:#1d2420; --muted:#5d675f;
+  --brand:#24372d; --brand-fg:#f3f5ef;
+  --accent:#c9851c; --accent-fg:#1d1404;
+  --ok:#2f7a4b; --ok-bg:#e3f1e7; --warn:#a05a00; --warn-bg:#fbeed8; --bad:#b3261e; --bad-bg:#fbe6e4;
+  --paper:#fbfaf6; --ink:#1b1b1b;
+  --f-display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111613; --surface:#1a211d; --surface-2:#212923; --line:#334038;
+  --fg:#e7ebe5; --muted:#9aa69d; --brand:#0c120f; --brand-fg:#e7ebe5;
+  --accent:#e2a03a; --accent-fg:#1d1404;
+  --ok:#6cc58f; --ok-bg:#183424; --warn:#f0b35a; --warn-bg:#3a2a10; --bad:#ff8a80; --bad-bg:#3d1916;
+  --paper:#f4f2ea; --ink:#1b1b1b; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111613; --surface:#1a211d; --surface-2:#212923; --line:#334038;
+  --fg:#e7ebe5; --muted:#9aa69d; --brand:#0c120f; --brand-fg:#e7ebe5;
+  --accent:#e2a03a; --accent-fg:#1d1404;
+  --ok:#6cc58f; --ok-bg:#183424; --warn:#f0b35a; --warn-bg:#3a2a10; --bad:#ff8a80; --bad-bg:#3d1916;
+  --paper:#f4f2ea; --ink:#1b1b1b; color-scheme:dark}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px 40px}
+.app{max-width:480px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+.demo{font-size:13px;color:var(--muted);display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.demo b{color:var(--fg)}
+.linkbtn{background:none;border:0;color:var(--fg);text-decoration:underline;font:inherit;cursor:pointer;padding:0}
+
+.bar{background:var(--brand);color:var(--brand-fg);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.bar-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.bar h1{font-family:var(--f-display);font-weight:700;font-size:26px;letter-spacing:.02em;margin:0;line-height:1;text-transform:uppercase}
+.bar .obra{font-size:13px;opacity:.8;margin-top:4px}
+.net{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;border:1px solid color-mix(in srgb,var(--brand-fg) 30%,transparent);border-radius:999px;padding:5px 10px;background:none;color:var(--brand-fg);cursor:pointer;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+.net.off .dot{background:var(--accent)}
+.tabs{display:flex;gap:4px;flex-wrap:wrap}
+.tabs button{flex:1;min-width:max-content;font:600 13px var(--f-body);color:var(--brand-fg);opacity:.7;background:none;border:0;border-radius:8px;padding:8px 10px;cursor:pointer}
+.tabs button[aria-selected="true"]{opacity:1;background:color-mix(in srgb,var(--brand-fg) 14%,transparent)}
+.tabs .lock{font-size:11px;opacity:.7}
+
+.panel{display:flex;flex-direction:column;gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.card h2{font-family:var(--f-display);font-size:19px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;margin:0;text-wrap:balance}
+.lbl{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.hint{font-size:13px;color:var(--muted);margin:0}
+
+.trucks{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+.truck{background:var(--surface-2);border:1.5px solid var(--line);border-radius:10px;padding:10px;text-align:left;cursor:pointer;color:var(--fg);font:inherit;display:flex;flex-direction:column;gap:2px}
+.truck[aria-pressed="true"]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,var(--surface))}
+.plate{font-family:var(--f-mono);font-weight:600;font-size:16px;letter-spacing:.06em}
+.truck small{color:var(--muted);font-size:12px;line-height:1.3}
+
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:14px}
+.kv dt{color:var(--muted)} .kv dd{margin:0;font-weight:500}
+
+input,select,textarea{width:100%;font:inherit;color:var(--fg);background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:10px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row>*{flex:1;min-width:0}
+.fld{display:flex;flex-direction:column;gap:4px;min-width:0}
+.fld input{min-width:0}
+.btn{font:600 15px var(--f-body);border:0;border-radius:10px;padding:13px 14px;cursor:pointer;background:var(--surface-2);color:var(--fg);border:1px solid var(--line)}
+.btn.primary{background:var(--accent);color:var(--accent-fg);border-color:transparent;font-size:16px}
+.btn.danger{background:var(--bad);color:#fff;border-color:transparent}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{flex:1;font:500 13px var(--f-body);padding:8px 6px;border:0;background:var(--surface-2);color:var(--muted);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+
+.photo{width:100%;border-radius:8px;display:block;aspect-ratio:16/10;object-fit:cover;max-width:100%;background:var(--surface-2)}
+.gps{font-family:var(--f-mono);font-size:12.5px;padding:8px 10px;border-radius:8px}
+.gps.ok{background:var(--ok-bg);color:var(--ok)} .gps.warn{background:var(--warn-bg);color:var(--warn)} .gps.bad{background:var(--bad-bg);color:var(--bad)}
+
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;min-width:0}
+.tile .n{font-family:var(--f-display);font-size:32px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.tile .t{font-size:12px;color:var(--muted);margin-top:4px}
+
+.scroll{overflow-x:auto;margin:0 -14px;padding:0 14px}
+table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+th{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:6px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:8px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+td.mono{font-family:var(--f-mono)}
+tr.anul td{color:var(--muted);text-decoration:line-through}
+.num{text-align:right}
+.pill{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.pill.ok{background:var(--ok-bg);color:var(--ok)} .pill.warn{background:var(--warn-bg);color:var(--warn)} .pill.bad{background:var(--bad-bg);color:var(--bad)}
+.pill.mute{background:var(--surface-2);color:var(--muted);border:1px solid var(--line)}
+tr.dif td{background:var(--bad-bg)}
+
+.alerts{display:flex;flex-direction:column;gap:8px}
+.alert{display:grid;grid-template-columns:4px 1fr;gap:10px;background:var(--surface-2);border-radius:8px;overflow:hidden}
+.alert .stripe{background:var(--warn)} .alert.bad .stripe{background:var(--bad)}
+.alert .body{padding:9px 10px 9px 0;font-size:14px;min-width:0}
+.alert .meta{font-size:12px;color:var(--muted);font-family:var(--f-mono)}
+
+/* Vale térmico */
+.vale-wrap{display:flex;flex-direction:column;align-items:center;gap:12px}
+.vale{background:var(--paper);color:var(--ink);font-family:var(--f-mono);font-size:13px;line-height:1.5;width:100%;max-width:300px;padding:18px 16px 22px;
+  border-radius:2px;box-shadow:0 6px 18px rgba(0,0,0,.18);
+  -webkit-mask:radial-gradient(circle at 6px 100%,transparent 5px,#000 5.5px) -6px 100%/12px 7px repeat-x,linear-gradient(#000,#000) 0 0/100% calc(100% - 6px) no-repeat;
+  mask:radial-gradient(circle at 6px 100%,transparent 5px,#000 5.5px) -6px 100%/12px 7px repeat-x,linear-gradient(#000,#000) 0 0/100% calc(100% - 6px) no-repeat}
+.vale .c{text-align:center} .vale .big{font-weight:600;font-size:15px;letter-spacing:.08em}
+.vale hr{border:0;border-top:1px dashed #777;margin:8px 0}
+.vale .firmas{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:30px;margin-bottom:14px;text-align:center;font-size:11px;align-items:end}
+.vale .firmas div{border-top:1px solid #333;padding-top:4px}
+.sig-card{width:100%;max-width:300px}
+.sig{width:100%;height:150px;background:var(--paper);border:1.5px dashed var(--line);border-radius:8px;touch-action:none;display:block;cursor:crosshair}
+.vale .firmas img{display:block;width:100%;height:46px;object-fit:contain;margin-bottom:2px}
+.vale .firmas div.firmado{border-top:0;padding-top:0}
+.vale .firmas div.firmado span{display:block;border-top:1px solid #333;padding-top:4px}
+.toast{background:var(--ok-bg);color:var(--ok);border-radius:10px;padding:10px 12px;font-size:14px;font-weight:500}
+.toast.warn{background:var(--warn-bg);color:var(--warn)}
+.confirm{background:var(--warn-bg);color:var(--fg);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px;font-size:14px}
+.confirm ul{margin:0;padding-left:18px;color:var(--warn)}
+@media (prefers-reduced-motion:no-preference){.vale{animation:print .6s ease-out}@keyframes print{from{clip-path:inset(0 0 100% 0)}to{clip-path:inset(0 0 0 0)}}}
+</style>
+
+<div class="app">
+  <div class="demo"><span><b>Prototipo</b> · datos de ejemplo, sin cámara ni impresora reales</span><button class="linkbtn" id="reset">Reiniciar demo</button></div>
+  <div class="demo">
+    <span>Teléfono del checker</span>
+    <div class="seg" id="devSeg" style="min-width:220px">
+      <button data-d="android" aria-pressed="true">Android · imprime vale</button>
+      <button data-d="iphone" aria-pressed="false">iPhone · firma en pantalla</button>
+    </div>
+  </div>
+
+  <div class="bar">
+    <div class="bar-top">
+      <div><h1>Control de Camiones</h1><div class="obra" id="obraLbl"></div></div>
+      <button class="net" id="net" aria-label="Cambiar estado de señal"><span class="dot"></span><span id="netTxt"></span></button>
+    </div>
+    <div class="tabs" role="tablist" id="tabs">
+      <button role="tab" data-t="reg" aria-selected="true">Registrar</button>
+      <button role="tab" data-t="hist" aria-selected="false">Historial</button>
+      <button role="tab" data-t="aud" aria-selected="false">Auditor <span class="lock">🔒</span></button>
+      <button role="tab" data-t="rep" aria-selected="false">Reportes <span class="lock">🔒</span></button>
+      <button role="tab" data-t="cam" aria-selected="false">Camiones <span class="lock">🔒</span></button>
+    </div>
+  </div>
+
+  <!-- REGISTRAR -->
+  <section class="panel" id="p-reg">
+    <div id="regForm" class="panel">
+      <div class="card">
+        <h2>1 · Camión</h2>
+        <div class="trucks" id="truckList"></div>
+        <dl class="kv" id="truckInfo" hidden></dl>
+        <label class="lbl" for="chofer">Chofer, si no es el habitual</label>
+        <input id="chofer" placeholder="Nombre del chofer">
+      </div>
+      <div class="card">
+        <h2>2 · Foto de patente</h2>
+        <p class="hint">Solo cámara en vivo. La foto queda marcada con fecha, hora, GPS y folio.</p>
+        <img class="photo" id="photo" alt="Foto de la patente" hidden>
+        <button class="btn" id="shoot">Tomar foto</button>
+        <div class="lbl">Ubicación (simulada en el prototipo)</div>
+        <div class="seg" id="gpsSeg">
+          <button data-g="obra" aria-pressed="true">En la obra</button>
+          <button data-g="fuera" aria-pressed="false">Fuera de obra</button>
+          <button data-g="sin" aria-pressed="false">Sin GPS</button>
+        </div>
+        <div class="gps ok" id="gpsTxt"></div>
+      </div>
+      <div class="card">
+        <label class="lbl" for="obs">Observaciones</label>
+        <textarea id="obs" rows="2" placeholder="Opcional"></textarea>
+        <div class="confirm" id="confirmBox" hidden>
+          <strong>Este registro quedará marcado para el auditor:</strong>
+          <ul id="confirmList"></ul>
+          <div class="row"><button class="btn" id="cancelReg">Volver</button><button class="btn primary" id="okReg">Registrar igual</button></div>
+        </div>
+        <div class="toast warn" id="regErr" hidden></div>
+        <button class="btn primary" id="doReg">Registrar salida e imprimir vale</button>
+      </div>
+    </div>
+    <div class="vale-wrap" id="valeView" hidden>
+      <div class="toast" id="valeToast"></div>
+      <div class="vale" id="vale"></div>
+      <div class="card sig-card" id="sigCard" hidden>
+        <h2>Firma del chofer</h2>
+        <p class="hint">En iPhone el vale no se imprime: el chofer firma aquí, en la pantalla, y la firma queda guardada junto al registro.</p>
+        <canvas id="sig" class="sig" aria-label="Recuadro para la firma del chofer"></canvas>
+        <div class="row"><button class="btn" id="sigClear">Borrar</button><button class="btn primary" id="sigOk">Confirmar firma</button></div>
+        <div class="toast warn" id="sigErr" hidden>Falta la firma del chofer.</div>
+      </div>
+      <button class="btn primary" id="nextReg" style="width:100%;max-width:300px">Siguiente camión</button>
+    </div>
+  </section>
+
+  <!-- HISTORIAL -->
+  <section class="panel" id="p-hist" hidden>
+    <div class="tiles">
+      <div class="tile"><div class="n" id="tViajes">0</div><div class="t">viajes hoy</div></div>
+      <div class="tile"><div class="n" id="tM3">0</div><div class="t">m³ hoy</div></div>
+      <div class="tile"><div class="n" id="tPend">0</div><div class="t">por sincronizar</div></div>
+    </div>
+    <div class="card">
+      <h2 id="histTit">Salidas de hoy</h2>
+      <div class="scroll"><table><thead><tr><th>Folio</th><th>Fecha</th><th>Hora</th><th>Patente</th><th class="num">m³</th><th>Estado</th></tr></thead><tbody id="histBody"></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- REPORTES -->
+  <section class="panel" id="p-rep" hidden>
+    <div class="card">
+      <h2>Filtros</h2>
+      <div class="row">
+        <div class="fld"><label class="lbl" for="fDesde">Desde</label><input type="date" id="fDesde"></div>
+        <div class="fld"><label class="lbl" for="fHasta">Hasta</label><input type="date" id="fHasta"></div>
+      </div>
+      <div class="fld"><label class="lbl" for="fPat">Patente</label><select id="fPat"></select></div>
+      <div class="row"><button class="btn" data-r="hoy">Hoy</button><button class="btn" data-r="7">Últimos 7 días</button><button class="btn" data-r="todo">Todo</button></div>
+      <button class="btn primary" id="xlsBtn">Exportar a Excel</button>
+      <div class="toast" id="xlsMsg" hidden></div>
+    </div>
+    <div class="tiles">
+      <div class="tile"><div class="n" id="rViajes">0</div><div class="t">viajes</div></div>
+      <div class="tile"><div class="n" id="rM3">0</div><div class="t">m³</div></div>
+      <div class="tile"><div class="n" id="rAnul">0</div><div class="t">anulados</div></div>
+    </div>
+    <div class="card">
+      <h2>Por día</h2>
+      <div class="scroll"><table><thead><tr><th>Fecha</th><th class="num">Viajes</th><th class="num">m³</th></tr></thead><tbody id="rDia"></tbody></table></div>
+    </div>
+    <div class="card">
+      <h2>Por patente</h2>
+      <div class="scroll"><table><thead><tr><th>Patente</th><th>Transportista</th><th class="num">Viajes</th><th class="num">m³</th></tr></thead><tbody id="rPat"></tbody></table></div>
+    </div>
+    <div class="card">
+      <h2>Detalle</h2>
+      <div class="scroll"><table><thead><tr><th>Folio</th><th>Fecha</th><th>Hora</th><th>Patente</th><th class="num">m³</th><th>Estado</th></tr></thead><tbody id="rDet"></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- PIN -->
+  <section class="panel" id="p-pin" hidden>
+    <div class="card">
+      <h2>Acceso auditor / administrador</h2>
+      <p class="hint">El car checker no tiene acceso a esta sección. Clave de demostración: 1234.</p>
+      <input id="pin" type="password" inputmode="numeric" placeholder="Clave">
+      <div class="toast warn" id="pinErr" hidden>Clave incorrecta. El intento queda en la bitácora.</div>
+      <button class="btn primary" id="pinOk">Entrar</button>
+    </div>
+  </section>
+
+  <!-- AUDITOR -->
+  <section class="panel" id="p-aud" hidden>
+    <div class="card">
+      <h2>Alertas</h2>
+      <div class="alerts" id="alertList"></div>
+    </div>
+    <div class="card">
+      <h2>Conciliación con botadero</h2>
+      <p class="hint">Comprobantes de descarga del botadero, una línea por descarga: fecha;patente. Vienen precargados los del día de ejemplo.</p>
+      <textarea id="tickets" rows="5" style="font-family:var(--f-mono);font-size:13px"></textarea>
+      <button class="btn" id="concBtn">Conciliar</button>
+      <div id="concOut"></div>
+    </div>
+    <div class="card">
+      <h2>Por transportista</h2>
+      <div class="scroll"><table><thead><tr><th>Transportista</th><th class="num">Viajes</th><th class="num">m³</th></tr></thead><tbody id="traBody"></tbody></table></div>
+    </div>
+    <div class="card">
+      <h2>Anular un viaje</h2>
+      <p class="hint">Nada se borra. El viaje anulado sigue visible, con su motivo.</p>
+      <div class="row"><input id="anFolio" placeholder="Folio, ej. 000105" style="flex:1"><input id="anMot" placeholder="Motivo" style="flex:2"></div>
+      <div class="toast warn" id="anErr" hidden></div>
+      <button class="btn danger" id="anBtn">Anular viaje</button>
+    </div>
+  </section>
+
+  <!-- CAMIONES -->
+  <section class="panel" id="p-cam" hidden>
+    <div class="card">
+      <h2>Maestro de camiones</h2>
+      <div class="scroll"><table><thead><tr><th>Patente</th><th>Transportista</th><th>Chofer</th><th class="num">m³</th></tr></thead><tbody id="camBody"></tbody></table></div>
+    </div>
+    <div class="card">
+      <h2>Agregar camión</h2>
+      <div class="row"><input id="cPat" placeholder="Patente" style="text-transform:uppercase"><input id="cCap" type="number" step="0.5" placeholder="Capacidad m³"></div>
+      <input id="cTra" placeholder="Transportista">
+      <div class="row"><input id="cRut" placeholder="RUT transportista"><input id="cCho" placeholder="Chofer habitual"></div>
+      <div class="toast warn" id="camErr" hidden></div>
+      <button class="btn primary" id="camBtn">Guardar camión</button>
+    </div>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const OBRA='Loteo Altos del Canelo · Etapa 2', CHECKER='Juan Pérez';
+const pad=n=>String(n).padStart(2,'0');
+const fmtF=d=>`${pad(d.getDate())}-${pad(d.getMonth()+1)}-${d.getFullYear()}`;
+const fmtH=d=>`${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const fol=n=>String(n).padStart(6,'0');
+const fmtISO=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const isoToF=s=>s.split('-').reverse().join('-');
+
+let S;
+function seed(){
+  const cam=[
+    {pat:'KXPT41',tra:'Transportes Cordillera Ltda.',rut:'76.412.880-3',cho:'Luis Contreras',cap:14},
+    {pat:'HJRW27',tra:'Transportes Cordillera Ltda.',rut:'76.412.880-3',cho:'Pedro Soto',cap:14},
+    {pat:'GBZS90',tra:'Fletes Maipo SpA',rut:'77.105.334-K',cho:'Marcelo Rojas',cap:20},
+    {pat:'LFDK12',tra:'Fletes Maipo SpA',rut:'77.105.334-K',cho:'Cristián Vera',cap:20},
+    {pat:'PRTC58',tra:'Áridos del Sur SpA',rut:'76.998.210-5',cho:'Jorge Muñoz',cap:12}
+  ];
+  const hoy=new Date(); hoy.setHours(8,0,0,0);
+  const viajes=[]; let f=0;
+  const mk=(c,d,al)=>({folio:fol(f),ts:d.getTime(),dia:fmtISO(d),fecha:fmtF(d),hora:fmtH(d),pat:c.pat,tra:c.tra,rut:c.rut,cho:c.cho,cap:c.cap,obs:'',alertas:al||[],anulado:false,motivo:'',sync:true});
+  // Días anteriores (índices del maestro de camiones)
+  const pasado=[[0,2,1,3,4,0,2,1,3,0],[2,0,1,3,4,0,2,1,0,3,2,4,1],[1,0,2,4,3,0,1,2,0,3,4],[0,1,2,3,4,0,2,1,3,0,4,2]];
+  pasado.forEach((pl,j)=>{const k=4-j;const day=new Date(hoy);day.setDate(day.getDate()-k);
+    pl.forEach((ci,i)=>{f++;const d=new Date(day.getTime()+(5+i*16+(i*7)%9)*60000);viajes.push(mk(cam[ci],d,(k===3&&i===5)?['Registrado sin GPS']:[]))});});
+  // Hoy: [patente, minutos desde 08:00, alerta]
+  const plan=[['KXPT41',5],['GBZS90',12],['HJRW27',20],['PRTC58',31],['LFDK12',44],['KXPT41',62],['GBZS90',80],['HJRW27',95],
+    ['PRTC58',108,'fuera'],['KXPT41',118],['LFDK12',131],['KXPT41',150],['GBZS90',166],['KXPT41',180]];
+  let iAnul=0;
+  plan.forEach(([p,m,al],i)=>{
+    f++; if(i===10) f++; // salto de folio de ejemplo
+    const c=cam.find(x=>x.pat===p); const d=new Date(hoy.getTime()+m*60000);
+    viajes.push(mk(c,d,al==='fuera'?['Registrado a 1.240 m de la obra']:[])); if(i===4)iAnul=viajes.length-1;
+  });
+  const v5=viajes[iAnul]; v5.anulado=true; v5.motivo='Camión devuelto: carga incompleta (10:15)';
+  // comprobantes del botadero: falta una descarga de KXPT41 de hoy; la anulada no llegó
+  const tk=viajes.filter(v=>!v.anulado).map(v=>`${v.fecha};${v.pat}`); tk.splice(tk.lastIndexOf(`${fmtF(hoy)};KXPT41`),1);
+  return {cam,viajes,folio:f,online:true,gps:'obra',sel:null,photo:null,adm:false,tab:'reg',tickets:tk.join('\n'),log:[]};
+}
+S=seed();
+
+function show(id,on){$(id).hidden=!on}
+function setTab(t){
+  S.tab=t;
+  document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.t===t));
+  const needPin=(t==='aud'||t==='cam'||t==='rep')&&!S.adm;
+  ['reg','hist','aud','rep','cam'].forEach(x=>show('p-'+x,x===t&&!needPin));
+  show('p-pin',needPin);
+  render();
+}
+$('tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setTab(b.dataset.t)});
+$('pinOk').onclick=()=>{if($('pin').value==='1234'){S.adm=true;$('pin').value='';show('pinErr',false);setTab(S.tab)}else{S.log.push('Acceso denegado');show('pinErr',true)}};
+$('pin').addEventListener('keydown',e=>{if(e.key==='Enter')$('pinOk').click()});
+
+// Señal
+function renderNet(){$('net').classList.toggle('off',!S.online);$('netTxt').textContent=(S.online?'En línea':'Sin señal')+' · '+S.viajes.filter(v=>!v.sync).length+' pend.'}
+$('net').onclick=()=>{S.online=!S.online;if(S.online)sync();render()};
+function sync(){if(!S.online)return;const p=S.viajes.filter(v=>!v.sync);if(!p.length)return;setTimeout(()=>{if(S.online){p.forEach(v=>v.sync=true);render()}},900)}
+
+// Registro
+function renderTrucks(){
+  $('truckList').innerHTML=S.cam.map((c,i)=>`<button class="truck" data-i="${i}" aria-pressed="${S.sel===i}"><span class="plate">${c.pat.slice(0,4)}·${c.pat.slice(4)}</span><small>${c.tra}</small><small>${c.cap} m³</small></button>`).join('');
+  const c=S.cam[S.sel];
+  show('truckInfo',!!c);
+  if(c)$('truckInfo').innerHTML=`<dt>Transportista</dt><dd>${c.tra}</dd><dt>Chofer habitual</dt><dd>${c.cho}</dd><dt>Capacidad</dt><dd>${c.cap} m³ (fija)</dd>`;
+}
+$('truckList').addEventListener('click',e=>{const b=e.target.closest('.truck');if(!b)return;S.sel=+b.dataset.i;S.photo=null;show('photo',false);$('shoot').textContent='Tomar foto';hideMsgs();renderTrucks()});
+
+const GPS={obra:{t:'GPS -33.48712, -70.55094 (±6 m) · a 18 m de la obra',c:'ok'},fuera:{t:'GPS -33.49841, -70.55760 (±9 m) · a 1.240 m de la obra',c:'warn'},sin:{t:'GPS sin señal: active la ubicación',c:'bad'}};
+function renderGps(){document.querySelectorAll('#gpsSeg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.g===S.gps));const g=GPS[S.gps];$('gpsTxt').className='gps '+g.c;$('gpsTxt').textContent=g.t}
+$('gpsSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(b){S.gps=b.dataset.g;hideMsgs();renderGps()}});
+
+function plateImg(pat){
+  const cv=document.createElement('canvas');cv.width=800;cv.height=500;const x=cv.getContext('2d');
+  const g=x.createLinearGradient(0,0,0,500);g.addColorStop(0,'#6f7469');g.addColorStop(1,'#3d413a');x.fillStyle=g;x.fillRect(0,0,800,500);
+  x.fillStyle='#2a2d27';x.fillRect(90,70,620,250);x.fillStyle='#c9851c';for(let i=0;i<8;i++){x.fillRect(90+i*80,300,40,20)}
+  x.fillStyle='#1c1e1a';x.fillRect(0,330,800,60);
+  x.fillStyle='#f4f4ef';x.strokeStyle='#111';x.lineWidth=6;x.beginPath();x.roundRect(240,190,320,110,10);x.fill();x.stroke();
+  x.fillStyle='#111';x.font='600 70px "IBM Plex Mono",monospace';x.textAlign='center';x.textBaseline='middle';x.fillText(pat.slice(0,4)+'·'+pat.slice(4),400,248);
+  x.font='600 14px Arial';x.fillText('CHILE',400,206);
+  const d=new Date();const lines=[`${fmtF(d)} ${fmtH(d)}:${pad(d.getSeconds())}`,S.gps==='sin'?'GPS sin señal':GPS[S.gps].t.split(' (')[0],`Folio ${fol(S.folio+1)} · ${OBRA}`];
+  x.fillStyle='rgba(0,0,0,.65)';x.fillRect(0,410,800,90);x.fillStyle='#ffd34d';x.font='600 22px "IBM Plex Mono",monospace';x.textAlign='left';x.textBaseline='alphabetic';
+  lines.forEach((t,i)=>x.fillText(t,18,440+i*26));
+  return cv.toDataURL('image/jpeg',.8);
+}
+$('shoot').onclick=()=>{const c=S.cam[S.sel];if(!c)return err('regErr','Seleccione primero el camión.');S.photo=plateImg(c.pat);$('photo').src=S.photo;show('photo',true);$('shoot').textContent='Tomar de nuevo';hideMsgs()};
+
+function err(id,t){$(id).textContent=t;show(id,true)}
+function hideMsgs(){show('regErr',false);show('confirmBox',false)}
+function alertasActuales(){const a=[];if(S.gps==='sin')a.push('Registrado sin GPS');if(S.gps==='fuera')a.push('Registrado a 1.240 m de la obra');return a}
+$('doReg').onclick=()=>{
+  hideMsgs();
+  if(S.sel==null)return err('regErr','Seleccione el camión que sale.');
+  if(!S.photo)return err('regErr','Falta la foto de la patente.');
+  const a=alertasActuales();
+  if(a.length){$('confirmList').innerHTML=a.map(t=>`<li>${t}</li>`).join('');show('confirmBox',true);return}
+  registrar([]);
+};
+$('cancelReg').onclick=()=>show('confirmBox',false);
+$('okReg').onclick=()=>registrar(alertasActuales());
+function registrar(al){
+  const c=S.cam[S.sel],d=new Date();S.folio++;
+  const v={folio:fol(S.folio),ts:d.getTime(),dia:fmtISO(d),rut:c.rut,fecha:fmtF(d),hora:fmtH(d),pat:c.pat,tra:c.tra,cho:$('chofer').value.trim()||c.cho,cap:c.cap,obs:$('obs').value.trim(),alertas:al,anulado:false,motivo:'',sync:false};
+  S.viajes.push(v);
+  $('vale').innerHTML=`<div class="c big">VALE DE SALIDA</div><div class="c">${OBRA}</div><div class="c">Folio N° ${v.folio}</div><hr>
+   Fecha: ${v.fecha}  Hora: ${v.hora}<br>Patente: ${c.pat.slice(0,4)}·${c.pat.slice(4)}<br>Transportista: ${v.tra}<br>Chofer: ${v.cho}<br>Volumen: ${v.cap} m³<br>Checker: ${CHECKER}${v.obs?'<br>Obs: '+v.obs.replace(/</g,'&lt;'):''}<hr>
+   <div class="firmas"><div id="firmaChofer">Firma chofer</div><div>Firma checker</div></div>`;
+  S.ultimo=v;
+  const ios=S.dev==='iphone';show('sigCard',ios);show('sigErr',false);$('nextReg').disabled=ios;
+  if(ios)requestAnimationFrame(sigInit);
+  $('valeToast').className='toast'+(al.length?' warn':'');
+  $('valeToast').textContent=`Salida registrada, folio ${v.folio}. `+(S.dev==='iphone'?'Pida al chofer que firme. ':'Vale impreso. ')+(S.online?'Sincronizando…':'Guardada en el teléfono; se subirá al volver la señal.')+(al.length?' Marcada para el auditor.':'');
+  show('regForm',false);show('valeView',true);
+  sync();render();
+}
+// Equipo del checker y firma en pantalla (iPhone)
+function renderDev(){document.querySelectorAll('#devSeg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.d===S.dev));
+  $('doReg').textContent=S.dev==='iphone'?'Registrar salida y firmar vale':'Registrar salida e imprimir vale'}
+$('devSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(b){S.dev=b.dataset.d;renderDev()}});
+let sigCtx=null,sigDraw=false,sigHas=false;
+function sigInit(){const c=$('sig'),r=c.getBoundingClientRect(),k=window.devicePixelRatio||1;c.width=r.width*k;c.height=r.height*k;
+  sigCtx=c.getContext('2d');sigCtx.scale(k,k);sigCtx.lineWidth=2.2;sigCtx.lineCap='round';sigCtx.lineJoin='round';sigCtx.strokeStyle='#1b1b1b';sigHas=false}
+function sigPos(e){const r=$('sig').getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top]}
+$('sig').addEventListener('pointerdown',e=>{if(!sigCtx)return;sigDraw=true;$('sig').setPointerCapture(e.pointerId);const[x,y]=sigPos(e);sigCtx.beginPath();sigCtx.moveTo(x,y)});
+$('sig').addEventListener('pointermove',e=>{if(!sigDraw)return;const[x,y]=sigPos(e);sigCtx.lineTo(x,y);sigCtx.stroke();sigHas=true});
+['pointerup','pointercancel','pointerleave'].forEach(t=>$('sig').addEventListener(t,()=>sigDraw=false));
+$('sigClear').onclick=()=>sigInit();
+$('sigOk').onclick=()=>{if(!sigHas){show('sigErr',true);return}
+  const img=$('sig').toDataURL('image/png');S.ultimo.firma=img;
+  const fc=$('firmaChofer');fc.className='firmado';fc.innerHTML=`<img src="${img}" alt="Firma del chofer"><span>Firma chofer</span>`;
+  show('sigCard',false);$('nextReg').disabled=false;
+  $('valeToast').textContent=`Vale folio ${S.ultimo.folio} firmado por el chofer. La firma queda guardada con el registro.`};
+
+$('nextReg').onclick=()=>{S.sel=null;S.photo=null;$('chofer').value='';$('obs').value='';show('photo',false);$('shoot').textContent='Tomar foto';show('valeView',false);show('regForm',true);render();window.scrollTo({top:0})};
+
+// Historial
+function estadoPill(v){if(v.anulado)return '<span class="pill mute">Anulado</span>';if(v.alertas.length)return '<span class="pill warn">Alerta</span>';return v.sync?'<span class="pill ok">Sincronizado</span>':'<span class="pill mute">En el teléfono</span>'}
+function renderHist(){
+  const hoy=fmtF(new Date()),vh=S.viajes.filter(v=>v.fecha===hoy&&!v.anulado);
+  $('tViajes').textContent=vh.length;$('tM3').textContent=vh.reduce((a,v)=>a+v.cap,0);$('tPend').textContent=S.viajes.filter(v=>!v.sync).length;
+  const dn=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'][new Date().getDay()];
+  $('histTit').textContent=`Salidas de hoy · ${dn} ${hoy}`;
+  $('histBody').innerHTML=S.viajes.filter(v=>v.fecha===hoy).reverse().map(v=>`<tr class="${v.anulado?'anul':''}"><td class="mono">${v.folio}</td><td>${v.fecha}</td><td>${v.hora}</td><td class="mono">${v.pat}</td><td class="num">${v.cap}</td><td>${estadoPill(v)}</td></tr>`).join('');
+}
+
+// Auditor
+function renderAud(){
+  const it=[];
+  S.viajes.forEach(v=>{v.alertas.forEach(a=>it.push({s:'warn',t:a,m:`Folio ${v.folio} · ${v.hora} · ${v.pat}`}));if(v.anulado)it.push({s:'warn',t:'Viaje anulado: '+v.motivo,m:`Folio ${v.folio} · ${v.hora} · ${v.pat}`})});
+  const por={};S.viajes.filter(v=>!v.anulado).forEach(v=>{(por[v.fecha]=por[v.fecha]||{})[v.pat]=(por[v.fecha][v.pat]||0)+1});
+  Object.entries(por).forEach(([f,m])=>{const n=Object.values(m),p=n.reduce((a,b)=>a+b,0)/n.length;Object.entries(m).forEach(([pt,k])=>{if(n.length>2&&k>p*1.5)it.push({s:'bad',t:`Frecuencia atípica: ${k} viajes en el día, el promedio por camión es ${p.toFixed(1).replace('.',',')}`,m:`${f} · ${pt}`})})});
+  const fs=S.viajes.map(v=>+v.folio).sort((a,b)=>a-b);for(let i=1;i<fs.length;i++)if(fs[i]-fs[i-1]>1)it.push({s:'bad',t:`Folio faltante: no existe registro entre ${fol(fs[i-1])} y ${fol(fs[i])}`,m:'Correlativo'});
+  it.sort((a,b)=>(a.s==='bad'?0:1)-(b.s==='bad'?0:1));
+  $('alertList').innerHTML=it.length?it.map(a=>`<div class="alert ${a.s}"><div class="stripe"></div><div class="body">${a.t}<div class="meta">${a.m}</div></div></div>`).join(''):'<p class="hint">Sin alertas.</p>';
+  if(!$('tickets').value)$('tickets').value=S.tickets;
+  const t={};S.viajes.filter(v=>!v.anulado).forEach(v=>{t[v.tra]=t[v.tra]||{n:0,m:0};t[v.tra].n++;t[v.tra].m+=v.cap});
+  $('traBody').innerHTML=Object.entries(t).map(([k,x])=>`<tr><td>${k}</td><td class="num">${x.n}</td><td class="num">${x.m}</td></tr>`).join('');
+}
+$('concBtn').onclick=()=>{
+  const bot={};$('tickets').value.split('\n').map(l=>l.trim()).filter(Boolean).forEach(l=>{const[f,p]=l.split(';').map(s=>(s||'').trim().toUpperCase());const k=f+'|'+p;bot[k]=(bot[k]||0)+1});
+  const app={};S.viajes.filter(v=>!v.anulado).forEach(v=>{const k=v.fecha+'|'+v.pat;app[k]=(app[k]||0)+1});
+  const ks=[...new Set([...Object.keys(app),...Object.keys(bot)])].sort();let difs=0;
+  const ord=k=>{const[f,p]=k.split('|');return f.split('-').reverse().join('')+p};ks.sort((x,y)=>ord(y)<ord(x)?-1:1);
+  const rows=ks.map(k=>{const[f,p]=k.split('|'),a=app[k]||0,b=bot[k]||0;if(a!==b)difs++;return `<tr class="${a!==b?'dif':''}"><td>${f}</td><td class="mono">${p}</td><td class="num">${a}</td><td class="num">${b}</td><td class="num">${a-b>0?'+':''}${a-b}</td></tr>`}).join('');
+  $('concOut').innerHTML=`<div class="toast${difs?' warn':''}">${difs?`${difs} diferencia(s) por día y patente. Una diferencia positiva es un viaje registrado sin comprobante del botadero: no se paga hasta aclararlo.`:'Todo cuadra con el botadero.'}</div>
+   <div class="scroll"><table><thead><tr><th>Fecha</th><th>Patente</th><th class="num">App</th><th class="num">Botadero</th><th class="num">Dif.</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+};
+$('anBtn').onclick=()=>{
+  show('anErr',false);const f=fol(+$('anFolio').value.trim()||0),m=$('anMot').value.trim(),v=S.viajes.find(x=>x.folio===f);
+  if(!v)return err('anErr','Ese folio no existe.');if(v.anulado)return err('anErr','Ese viaje ya estaba anulado.');if(m.length<5)return err('anErr','Escriba el motivo de la anulación.');
+  v.anulado=true;v.motivo=`${m} (${fmtH(new Date())})`;v.sync=false;$('anFolio').value='';$('anMot').value='';sync();render();
+};
+
+// Reportes
+function setRango(r){const h=new Date();$('fHasta').value=fmtISO(h);
+  if(r==='hoy')$('fDesde').value=fmtISO(h);else if(r==='7'){const d=new Date(h);d.setDate(d.getDate()-6);$('fDesde').value=fmtISO(d)}else{$('fDesde').value='';$('fHasta').value=''}}
+document.querySelectorAll('#p-rep [data-r]').forEach(b=>b.onclick=()=>{setRango(b.dataset.r);renderRep()});
+['fDesde','fHasta','fPat'].forEach(id=>$(id).addEventListener('change',renderRep));
+function filtrados(){const a=$('fDesde').value,b=$('fHasta').value,p=$('fPat').value;return S.viajes.filter(v=>(!a||v.dia>=a)&&(!b||v.dia<=b)&&(!p||v.pat===p))}
+function agrupar(arr,key){const m={};arr.forEach(v=>{const k=key(v);m[k]=m[k]||{n:0,m3:0,v};m[k].n++;m[k].m3+=v.cap});return m}
+function renderRep(){
+  const cur=$('fPat').value;
+  $('fPat').innerHTML='<option value="">Todas las patentes</option>'+S.cam.map(c=>`<option value="${c.pat}">${c.pat} · ${c.tra}</option>`).join('');$('fPat').value=cur;
+  const all=filtrados(),val=all.filter(v=>!v.anulado);
+  $('rViajes').textContent=val.length;$('rM3').textContent=val.reduce((a,v)=>a+v.cap,0);$('rAnul').textContent=all.length-val.length;
+  const pd=agrupar(val,v=>v.dia);
+  $('rDia').innerHTML=Object.keys(pd).sort().reverse().map(k=>`<tr><td>${isoToF(k)}</td><td class="num">${pd[k].n}</td><td class="num">${pd[k].m3}</td></tr>`).join('')||'<tr><td colspan="3" class="hint">Sin viajes en este rango.</td></tr>';
+  const pp=agrupar(val,v=>v.pat);
+  $('rPat').innerHTML=Object.keys(pp).sort((a,b)=>pp[b].n-pp[a].n).map(k=>`<tr><td class="mono">${k}</td><td>${pp[k].v.tra}</td><td class="num">${pp[k].n}</td><td class="num">${pp[k].m3}</td></tr>`).join('')||'<tr><td colspan="4" class="hint">Sin viajes en este rango.</td></tr>';
+  $('rDet').innerHTML=all.slice().reverse().map(v=>`<tr class="${v.anulado?'anul':''}"><td class="mono">${v.folio}</td><td>${v.fecha}</td><td>${v.hora}</td><td class="mono">${v.pat}</td><td class="num">${v.cap}</td><td>${estadoPill(v)}</td></tr>`).join('')||'<tr><td colspan="6" class="hint">Sin viajes en este rango.</td></tr>';
+}
+// Exportar a Excel
+const dlP=(window.claude&&window.claude.use)?window.claude.use('downloads').catch(()=>null):Promise.resolve('local');
+dlP.then(d=>{if(!d){$('xlsBtn').hidden=true;msg('La exportación a Excel no está disponible en esta vista. En la app real se descarga directo al teléfono o computador.',true)}});
+function msg(t,w){$('xlsMsg').textContent=t;$('xlsMsg').className='toast'+(w?' warn':'');show('xlsMsg',true)}
+$('xlsBtn').onclick=async()=>{
+  show('xlsMsg',false);
+  if(!window.XLSX)return msg('No se pudo cargar el generador de Excel. Revise la conexión e intente de nuevo.',true);
+  const all=filtrados();if(!all.length)return msg('No hay viajes en el rango elegido.',true);
+  const val=all.filter(v=>!v.anulado),a=$('fDesde').value,b=$('fHasta').value,p=$('fPat').value;
+  const det=all.map(v=>({Folio:v.folio,Fecha:v.fecha,Hora:v.hora,Patente:v.pat,Transportista:v.tra,'RUT transportista':v.rut||'',Chofer:v.cho,'m³':v.cap,
+    Estado:v.anulado?'Anulado':(v.alertas.length?'Con alerta':'OK'),Alertas:v.alertas.join(' | '),'Motivo anulación':v.motivo,Observaciones:v.obs}));
+  const pd=agrupar(val,v=>v.dia),pp=agrupar(val,v=>v.pat);
+  const dia=Object.keys(pd).sort().map(k=>({Fecha:isoToF(k),Viajes:pd[k].n,'m³':pd[k].m3}));
+  const pat=Object.keys(pp).sort().map(k=>({Patente:k,Transportista:pp[k].v.tra,'RUT transportista':pp[k].v.rut||'',Viajes:pp[k].n,'m³':pp[k].m3}));
+  dia.push({Fecha:'TOTAL',Viajes:val.length,'m³':val.reduce((s,v)=>s+v.cap,0)});pat.push({Patente:'TOTAL',Transportista:'',Viajes:val.length,'m³':val.reduce((s,v)=>s+v.cap,0)});
+  const wb=XLSX.utils.book_new(),add=(rows,name,w)=>{const ws=XLSX.utils.json_to_sheet(rows);ws['!cols']=w.map(x=>({wch:x}));XLSX.utils.book_append_sheet(wb,ws,name)};
+  add(det,'Detalle',[9,11,7,10,28,15,18,6,11,32,32,24]);add(dia,'Por día',[12,8,8]);add(pat,'Por patente',[10,28,15,8,8]);
+  const info=[{Campo:'Obra',Valor:OBRA},{Campo:'Desde',Valor:a?isoToF(a):'Inicio'},{Campo:'Hasta',Valor:b?isoToF(b):'Hoy'},{Campo:'Patente',Valor:p||'Todas'},{Campo:'Generado',Valor:`${fmtF(new Date())} ${fmtH(new Date())}`}];
+  add(info,'Filtros',[10,40]);
+  const buf=XLSX.write(wb,{type:'array',bookType:'xlsx'});
+  const fname=`viajes_botadero_${a||'inicio'}_a_${b||'hoy'}${p?'_'+p:''}.xlsx`;
+  const d=await dlP;
+  if(d==='local'){const u=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));const l=document.createElement('a');l.href=u;l.download=fname;l.click();return msg(`Excel generado: ${fname}`)}
+  try{await d.save({filename:fname,data:new Uint8Array(buf)});msg(`Excel generado: ${fname}`)}
+  catch(e){if(e&&e.code==='declined')return;if(e&&e.code==='rate_limited')return msg('Ya hay una descarga pendiente de confirmar.',true);msg('No se pudo guardar el archivo en esta vista.',true)}
+};
+
+// Camiones
+function renderCam(){$('camBody').innerHTML=S.cam.map(c=>`<tr><td class="mono">${c.pat}</td><td>${c.tra}</td><td>${c.cho}</td><td class="num">${c.cap}</td></tr>`).join('')}
+$('camBtn').onclick=()=>{show('camErr',false);const pat=$('cPat').value.trim().toUpperCase().replace(/[^A-Z0-9]/g,''),cap=+$('cCap').value;
+  if(pat.length<5||!cap)return err('camErr','La patente y la capacidad son obligatorias.');
+  const c={pat,cap,tra:$('cTra').value.trim()||'Sin transportista',rut:$('cRut').value.trim(),cho:$('cCho').value.trim()||'—'};
+  const i=S.cam.findIndex(x=>x.pat===pat);if(i>=0)S.cam[i]=c;else S.cam.push(c);['cPat','cCap','cTra','cRut','cCho'].forEach(id=>$(id).value='');render()};
+
+$('reset').onclick=()=>{const dv=S.dev;S=seed();S.dev=dv;renderDev();setRango('7');$('fPat').value='';show('xlsMsg',false);$('tickets').value='';$('concOut').innerHTML='';show('valeView',false);show('regForm',true);show('photo',false);$('shoot').textContent='Tomar foto';hideMsgs();setTab('reg')};
+
+function render(){$('obraLbl').textContent=OBRA+' · Checker: '+CHECKER;renderNet();renderTrucks();renderGps();renderHist();renderAud();renderRep();renderCam()}
+S.dev=(/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1))?'iphone':'android';
+setRango('7');renderDev();setTab('reg');
+})();
+</script>
