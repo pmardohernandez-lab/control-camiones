@@ -3,7 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Control de Camiones - Botadero v5</title>
+<title>Green Control Camiones</title>
+<meta name="apple-mobile-web-app-title" content="Green Camiones">
+<meta name="theme-color" content="#2e7d32">
 <style>
 body{font-family:Arial,sans-serif;margin:0;background:#f2f4f3;color:#222}
 header{background:#2e7d32;color:#fff;padding:12px 16px;font-size:18px;font-weight:bold;display:flex;justify-content:space-between}
@@ -22,16 +24,29 @@ video,img.prev{width:100%;margin-top:8px;background:#000}
 table{width:100%;border-collapse:collapse;font-size:13px;background:#fff}td,th{border:1px solid #ccc;padding:5px}
 tr.anul td{text-decoration:line-through;color:#999}
 #estado{font-size:12px}
+.sub{font-size:12px;font-weight:normal;opacity:.85}
+.demo-banner{background:#fff3cd;color:#664d03;padding:8px 16px;font-size:13px}
+.intro{background:#e8f5e9;border-left:5px solid #2e7d32;padding:10px;border-radius:4px}
+#demoFin{position:fixed;inset:0;background:#f2f4f3;z-index:50;padding:24px 16px;overflow:auto}
+#demoFin .box{max-width:460px;margin:0 auto;background:#fff;border-radius:8px;padding:20px;box-shadow:0 1px 4px #0003}
 </style>
 </head>
 <body>
-<header><span>Control Camiones</span><span id="estado"></span></header>
+<header><div><div>Green Control Camiones</div><div class="sub" id="empHdr"></div></div><span id="estado"></span></header>
+<div id="demoBanner" class="demo-banner" style="display:none"></div>
+<div id="demoFin" style="display:none"><div class="box">
+<h2 style="margin-top:0">Terminó el periodo de prueba</h2>
+<p>Los 14 días de prueba de <b>Green Control Camiones</b> terminaron. Sus registros siguen guardados en este teléfono y puede descargarlos.</p>
+<button class="btn" onclick="exportarTodo()">Descargar mis registros en Excel</button>
+<p>Para seguir usando la app, contacte a Green Consultores SpA:<br><b>Pedro Mardones Hernández</b><br>pmardones@greenspa.cl<br>+56 9 5417 7861</p>
+</div></div>
 <nav>
 <button class="on" onclick="tab('reg',this)">Registrar</button>
 <button onclick="tab('hist',this)">Historial</button>
 <button onclick="tabAdm('aud',this)">Auditor</button>
 <button onclick="tabAdm('rep',this)">Reportes</button>
 <button onclick="tabAdm('cam',this)">Camiones</button>
+<button onclick="tabAdm('emp',this)">Empresa</button>
 <button onclick="tabAdm('conf',this)">Config</button>
 </nav>
 
@@ -102,7 +117,26 @@ tr.anul td{text-decoration:line-through;color:#999}
 <div id="listaCam"></div>
 </section>
 
+<section id="emp">
+<div id="empIntro" class="intro" style="display:none"><b>Bienvenido a Green Control Camiones.</b><br>Paso 1 de 2: ingrese los datos de su empresa. Aparecerán en los vales y en los reportes.</div>
+<h3>Datos de la empresa usuaria</h3>
+<label>Razón social *</label><input id="eRaz" autocomplete="organization">
+<label>Nombre de fantasía</label><input id="eFan">
+<label>RUT empresa *</label><input id="eRut" placeholder="76.123.456-7" onblur="if(validarRut(this.value))this.value=fmtRut(this.value)">
+<label>Giro</label><input id="eGiro">
+<label>Dirección</label><input id="eDir" autocomplete="street-address">
+<label>Comuna</label><input id="eCom">
+<label>Teléfono</label><input id="eTel" type="tel">
+<label>Correo</label><input id="eMail" type="email">
+<label>Contacto (nombre)</label><input id="eCon">
+<label>Cargo del contacto</label><input id="eCar">
+<label>Logo (opcional)</label><input id="eLogo" type="file" accept="image/*" onchange="leerLogo()">
+<img id="eLogoPrev" alt="Logo de la empresa" style="max-height:60px;display:none;margin-top:6px">
+<button class="btn" onclick="guardarEmpresa()">Guardar empresa</button>
+</section>
+
 <section id="conf">
+<div id="confIntro" class="intro" style="display:none">Paso 2 de 2: ingrese la obra, el car checker y una clave nueva. Luego cargue los camiones en la pestaña Camiones.</div>
 <label>Nombre obra</label><input id="oObra">
 <label>Nombre car checker</label><input id="oChk">
 <label>Ubicación obra: latitud, longitud</label><input id="oPos" placeholder="-33.48, -70.54">
@@ -123,9 +157,37 @@ let camiones=LS('camiones')||[], viajes=LS('viajes')||[], log=LS('log')||[];
 let conf=LS('conf')||{obra:'',chk:'',url:'',folio:0,lat:null,lng:null,radio:300,pin:'1234'};
 let fotoData='', impChar=null, gps=null, stream=null, admOK=false;
 const $=id=>document.getElementById(id);
+let empresa=LS('empresa')||{};
+// ---- Versión de prueba ----
+const DEMO=false, DEMO_DIAS=14;
+function diasDemo(){let ini=LS('demoIni');if(!ini){ini=Date.now();SS('demoIni',ini);}return DEMO_DIAS-Math.floor(Math.max(0,Date.now()-ini)/86400000);}
+function demoVencida(){return DEMO&&diasDemo()<=0;}
+function demoEstado(){if(!DEMO)return;const q=diasDemo();
+ if(q<=0){$('demoFin').style.display='block';return;}
+ $('demoBanner').style.display='block';$('demoBanner').textContent=`Versión de prueba · quedan ${q} día${q===1?'':'s'} · Green Consultores SpA · pmardones@greenspa.cl · +56 9 5417 7861`;}
+function exportarTodo(){rango('todo');$('fPat').value='';exportarExcel();}
+// ---- Empresa usuaria ----
+function validarRut(r){r=(r||'').replace(/[.\s-]/g,'').toUpperCase();if(!/^\d{7,8}[0-9K]$/.test(r))return false;
+ const c=r.slice(0,-1),dv=r.slice(-1);let s=0,m=2;for(let i=c.length-1;i>=0;i--){s+=Number(c[i])*m;m=m===7?2:m+1;}
+ const e=11-s%11;return (e===11?'0':e===10?'K':String(e))===dv;}
+function fmtRut(r){r=r.replace(/[.\s-]/g,'').toUpperCase();return r.slice(0,-1).replace(/\B(?=(\d{3})+(?!\d))/g,'.')+'-'+r.slice(-1);}
+const EMP=[['eRaz','raz'],['eFan','fan'],['eRut','rut'],['eGiro','giro'],['eDir','dir'],['eCom','com'],['eTel','tel'],['eMail','mail'],['eCon','con'],['eCar','car']];
+function leerLogo(){const f=$('eLogo').files[0];if(!f)return;const r=new FileReader();r.onload=e=>{const img=new Image();img.onload=()=>{
+ const k=Math.min(1,240/img.width),cv=document.createElement('canvas');cv.width=img.width*k;cv.height=img.height*k;cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
+ empresa.logo=cv.toDataURL('image/png');$('eLogoPrev').src=empresa.logo;$('eLogoPrev').style.display='block';};img.src=e.target.result;};r.readAsDataURL(f);}
+let onboarding=false;
+function guardarEmpresa(){
+ const raz=$('eRaz').value.trim(),rut=$('eRut').value.trim();
+ if(!raz)return alert('Ingrese la razón social');
+ if(!validarRut(rut))return alert('El RUT no es válido. Revise el número y el dígito verificador.');
+ EMP.forEach(([id,k])=>empresa[k]=$(id).value.trim());empresa.rut=fmtRut(rut);
+ SS('empresa',empresa);bitacora('Guarda datos de empresa',empresa.raz+' '+empresa.rut);render();
+ if(onboarding){onboarding=false;$('empIntro').style.display='none';$('confIntro').style.display='block';alert('Empresa guardada. Ahora configure la obra.');tab('conf',navBtn('conf'));}
+ else alert('Datos de la empresa guardados');}
+function navBtn(id){return document.querySelector(`nav button[onclick*="'${id}'"]`);}
 
 function bitacora(acc,det){log.push({t:new Date().toISOString(),acc,det});SS('log',log);}
-function tab(id,b){if(stream&&id!=='reg')cerrarCam();document.querySelectorAll('section').forEach(s=>s.classList.remove('on'));$(id).classList.add('on');
+function tab(id,b){if(id==='emp')EMP.forEach(([i,k])=>$(i).value=empresa[k]||'');if(stream&&id!=='reg')cerrarCam();document.querySelectorAll('section').forEach(s=>s.classList.remove('on'));$(id).classList.add('on');
  document.querySelectorAll('nav button').forEach(x=>x.classList.remove('on'));b.classList.add('on');render();}
 function tabAdm(id,b){if(!admOK){const p=prompt('Clave administrador/auditor');if(p!==conf.pin){alert('Clave incorrecta');bitacora('Acceso denegado',id);return;}admOK=true;}tab(id,b);}
 
@@ -158,6 +220,8 @@ function render(){
   viajes.slice().reverse().map(v=>`<tr class="${v.anulado?'anul':''}"><td>${v.folio}</td><td>${v.fecha}</td><td>${v.hora}</td><td>${v.pat}</td><td>${v.cap}</td><td>${v.alertas.length?'⚠':''}</td><td>${v.sync?'✔':'…'}</td></tr>`).join('')+'</table>';
  $('oObra').value=conf.obra||'';$('oChk').value=conf.chk||'';$('oUrl').value=conf.url||'';$('oRadio').value=conf.radio||'';
  $('oPos').value=conf.lat!=null?`${conf.lat}, ${conf.lng}`:'';
+ $('empHdr').textContent=empresa.raz?(empresa.fan||empresa.raz)+(conf.obra?' · '+conf.obra:''):'';
+ if(empresa.logo){$('eLogoPrev').src=empresa.logo;$('eLogoPrev').style.display='block';}
  renderAlertas();renderRep();estado();
 }
 function renderAlertas(){
@@ -181,10 +245,12 @@ function guardarCam(){const pat=$('cPat').value.trim().toUpperCase();if(!pat||!$
 function fijarObra(){if(!gps)return alert('Sin GPS todavía');$('oPos').value=`${gps.lat.toFixed(6)}, ${gps.lng.toFixed(6)}`;}
 function guardarConf(){conf.obra=$('oObra').value;conf.chk=$('oChk').value;conf.url=$('oUrl').value.trim();
  conf.radio=Number($('oRadio').value)||300;const p=$('oPos').value.split(',').map(Number);if(p.length===2&&!isNaN(p[0])&&!isNaN(p[1])){conf.lat=p[0];conf.lng=p[1];}
- if($('oPin').value){conf.pin=$('oPin').value;$('oPin').value='';}bitacora('Cambia configuración','');SS('conf',conf);alert('Guardado');}
+ if($('oPin').value){conf.pin=$('oPin').value;$('oPin').value='';}bitacora('Cambia configuración','');SS('conf',conf);$('confIntro').style.display='none';alert('Guardado');render();}
 
 async function registrar(){
  const c=camiones[$('selCam').value];
+ if(demoVencida())return demoEstado();
+ if(!empresa.rut)return alert('Primero ingrese los datos de la empresa en la pestaña Empresa');
  if(viajes.some(x=>x.pendFirma))return alert('Primero el chofer debe firmar el vale anterior');
  if(!c)return alert('Seleccione un camión');
  if(!fotoData)return alert('Falta la foto de la patente con la cámara');
@@ -193,7 +259,7 @@ async function registrar(){
  if(alertas.length&&!confirm('ATENCIÓN:\n'+alertas.join('\n')+'\n\nEl registro quedará marcado para el auditor. ¿Continuar?'))return;
  conf.folio=(conf.folio||0)+1;SS('conf',conf);
  const v={folio:String(conf.folio).padStart(6,'0'),ts:d.toISOString(),fecha:d.toLocaleDateString('es-CL'),hora:d.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'}),
-  pat:c.pat,tra:c.tra,rut:c.rut,cho:$('chofer').value||c.cho,cap:c.cap,obs:$('obs').value,obra:conf.obra,chk:conf.chk,
+  pat:c.pat,tra:c.tra,rut:c.rut,cho:$('chofer').value||c.cho,cap:c.cap,obs:$('obs').value,obra:conf.obra,chk:conf.chk,empresa:empresa.raz,rutEmp:empresa.rut,
   lat:gps?gps.lat:'',lng:gps?gps.lng:'',alertas,anulado:false,motivo:'',foto:fotoData,sync:false};
  viajes.push(v);
  try{SS('viajes',viajes);}catch(e){alert('Memoria del teléfono llena: sincronice antes de seguir');viajes.pop();conf.folio--;SS('conf',conf);return;}
@@ -228,7 +294,7 @@ etiquetaReg();
 async function imprimir(v){
  if(!impChar){pedirFirma(v);return;}
  const s=x=>(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'');
- const txt=`\x1B@\x1Ba\x01\x1BE\x01VALE DE SALIDA\x1BE\x00\n${s(v.obra)}\nFolio N ${v.folio}\n\x1Ba\x00--------------------------------\nFecha: ${v.fecha}  Hora: ${v.hora}\nPatente: ${v.pat}\nTransportista: ${s(v.tra)}\nChofer: ${s(v.cho)}\nVolumen: ${v.cap} m3\nChecker: ${s(v.chk)}\n${v.obs?'Obs: '+s(v.obs)+'\n':''}--------------------------------\n\n\n______________   ______________\nFirma chofer     Firma checker\n\n\n\n`;
+ const txt=`\x1B@\x1Ba\x01\x1BE\x01VALE DE SALIDA\x1BE\x00\n${s(v.empresa||'')}\nRUT ${v.rutEmp||''}\n${s(v.obra)}\nFolio N ${v.folio}\n\x1Ba\x00--------------------------------\nFecha: ${v.fecha}  Hora: ${v.hora}\nPatente: ${v.pat}\nTransportista: ${s(v.tra)}\nChofer: ${s(v.cho)}\nVolumen: ${v.cap} m3\nChecker: ${s(v.chk)}\n${v.obs?'Obs: '+s(v.obs)+'\n':''}--------------------------------\n\n\n______________   ______________\nFirma chofer     Firma checker\n\nGreen Control Camiones\n\n\n`;
  const data=new TextEncoder().encode(txt);for(let i=0;i<data.length;i+=100){await impChar.writeValue(data.slice(i,i+100));}
 }
 async function sincronizar(){
@@ -271,20 +337,20 @@ function exportarExcel(){
  const pat=Object.keys(pp).sort().map(k=>({Patente:k,Transportista:pp[k].v.tra,'RUT transportista':pp[k].v.rut,Viajes:pp[k].n,'m³':pp[k].m3}));pat.push({Patente:'TOTAL',Viajes:val.length,'m³':tot});
  const wb=XLSX.utils.book_new(),add=(rows,name,w)=>{const ws=XLSX.utils.json_to_sheet(rows);ws['!cols']=w.map(x=>({wch:x}));XLSX.utils.book_append_sheet(wb,ws,name);};
  add(det,'Detalle',[9,11,7,10,28,15,18,6,11,32,32,24,24,16,11,11]);add(dia,'Por día',[12,8,8]);add(pat,'Por patente',[10,28,15,8,8]);
- add([{Campo:'Obra',Valor:conf.obra},{Campo:'Desde',Valor:a?isoAF(a):'Inicio'},{Campo:'Hasta',Valor:b?isoAF(b):'Hoy'},{Campo:'Patente',Valor:p||'Todas'},{Campo:'Generado',Valor:new Date().toLocaleString('es-CL')}],'Filtros',[10,40]);
- XLSX.writeFile(wb,`viajes_botadero_${a||'inicio'}_a_${b||'hoy'}${p?'_'+p:''}.xlsx`);
+ add([{Campo:'Empresa',Valor:empresa.raz||''},{Campo:'RUT empresa',Valor:empresa.rut||''},{Campo:'Obra',Valor:conf.obra},{Campo:'Desde',Valor:a?isoAF(a):'Inicio'},{Campo:'Hasta',Valor:b?isoAF(b):'Hoy'},{Campo:'Patente',Valor:p||'Todas'},{Campo:'Generado',Valor:new Date().toLocaleString('es-CL')}],'Filtros',[10,40]);
+ XLSX.writeFile(wb,`green_control_camiones_${a||'inicio'}_a_${b||'hoy'}${p?'_'+p:''}.xlsx`);
  bitacora('Exporta Excel',`${a}..${b} ${p||'todas'}`);
 }
 function exportar(lista){
- const cols=['folio','fecha','hora','pat','tra','rut','cho','cap','obs','obra','chk','lat','lng','alertas','anulado','motivo','sync'];
+ const cols=['folio','fecha','hora','pat','tra','rut','cho','cap','obs','empresa','rutEmp','obra','chk','lat','lng','alertas','anulado','motivo','sync'];
  const csv=[cols.join(';')].concat((lista||viajes).map(v=>cols.map(k=>String(Array.isArray(v[k])?v[k].join(' | '):(v[k]??'')).replace(/;/g,',')).join(';'))).join('\n');
- const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv'}));a.download='viajes_botadero.csv';a.click();
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv'}));a.download='green_control_camiones.csv';a.click();
 }
 // ---- Firma del chofer en pantalla (iPhone o Android sin impresora) ----
 let fCtx=null,fDraw=false,fHas=false,fViaje=null;
 function etiquetaReg(){$('btnReg').textContent=impChar?'Registrar salida e imprimir vale':'Registrar salida y firmar vale';}
 function pedirFirma(v){fViaje=v;v.pendFirma=true;SS('viajes',viajes);
- $('firmaVale').innerHTML=`<b>VALE DE SALIDA · Folio ${v.folio}</b><br>${v.obra||''}<br>Fecha: ${v.fecha} · Hora: ${v.hora}<br>Patente: ${v.pat}<br>Transportista: ${v.tra}<br>Chofer: ${v.cho}<br>Volumen: <b>${v.cap} m³</b><br>Checker: ${v.chk||''}`;
+ $('firmaVale').innerHTML=`${empresa.logo?`<img src="${empresa.logo}" alt="" style="max-height:40px;display:block;margin-bottom:4px">`:''}<b>VALE DE SALIDA · Folio ${v.folio}</b><br>${v.empresa||''} · RUT ${v.rutEmp||''}<br>${v.obra||''}<br>Fecha: ${v.fecha} · Hora: ${v.hora}<br>Patente: ${v.pat}<br>Transportista: ${v.tra}<br>Chofer: ${v.cho}<br>Volumen: <b>${v.cap} m³</b><br>Checker: ${v.chk||''}`;
  $('firmaBox').style.display='block';$('btnReg').style.display='none';requestAnimationFrame(firmaInit);$('firmaBox').scrollIntoView({behavior:'smooth'});}
 function firmaInit(){const c=$('firmaCv'),r=c.getBoundingClientRect(),k=window.devicePixelRatio||1;c.width=r.width*k;c.height=r.height*k;
  fCtx=c.getContext('2d');fCtx.scale(k,k);fCtx.lineWidth=2.5;fCtx.lineCap='round';fCtx.lineJoin='round';fCtx.strokeStyle='#111';fHas=false;}
@@ -300,7 +366,8 @@ function firmaOk(){if(!fHas)return alert('Falta la firma del chofer');
 function retomarFirma(){const v=viajes.find(x=>x.pendFirma);if(v)pedirFirma(v);}
 
 window.addEventListener('online',sincronizar);window.addEventListener('offline',estado);
-setInterval(sincronizar,60000);vigilarGPS();render();etiquetaReg();retomarFirma();
+setInterval(sincronizar,60000);vigilarGPS();render();etiquetaReg();demoEstado();
+if(!demoVencida()){if(!empresa.rut){onboarding=true;admOK=true;$('empIntro').style.display='block';tab('emp',navBtn('emp'));}else retomarFirma();}
 </script>
 </body>
 </html>

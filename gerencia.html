@@ -1,5 +1,5 @@
 <!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Control de Camiones Gerencia</title>
+<title>Green Control Camiones Gerencia</title>
 <meta name="claude:viewport-fit-sides" content="cover"><style>body{margin:0}</style></head><body>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
@@ -149,7 +149,7 @@ tr.nuevo td{animation:flash 2.4s ease-out}
 
   <!-- ACCESO -->
   <section class="login" id="vLogin">
-    <div class="top"><h1>Panel de gerencia</h1><p>Control de camiones al botadero · Construcción y Urbanización SpA</p></div>
+    <div class="top"><h1>Green Control Camiones</h1><p>Panel de gerencia · Construcción y Urbanización SpA</p></div>
     <form id="fLogin">
       <label class="lbl" for="lUser">Usuario</label>
       <input id="lUser" value="gerencia" autocomplete="username">
@@ -163,7 +163,7 @@ tr.nuevo td{animation:flash 2.4s ease-out}
   <!-- PANEL -->
   <div id="vPanel" hidden class="wrap" style="max-width:none;width:100%">
     <div class="bar">
-      <div><h1>Panel de gerencia</h1><div class="sub">Construcción y Urbanización SpA · Salidas al botadero</div></div>
+      <div><h1>Green Control Camiones</h1><div class="sub">Panel de gerencia · Construcción y Urbanización SpA</div></div>
       <div class="bar-actions">
         <span class="live"><i></i><span id="liveTxt">En línea</span></span>
         <button class="btn ghost" id="bOut">Cerrar sesión</button>
@@ -407,7 +407,7 @@ $('bXls').onclick=async()=>{
   add(toRows(g(v=>v.tra),'Transportista'),'Por transportista',[30,8,8,14,18]);
   add(toRows(g(v=>v.dia),'Día').map(r=>Object.assign(r,{Día:r['Día'].split('-').reverse().join('-')})),'Por día',[12,8,8,14,18]);
   add(det,'Viajes',[9,11,7,34,10,28,18,6,16,16,32,30]);
-  const per=S.per===1?'hoy':`${S.per}dias`,fn=`gerencia_botadero_${S.obra||'todas'}_${per}.xlsx`;
+  const per=S.per===1?'hoy':`${S.per}dias`,fn=`green_control_camiones_gerencia_${S.obra||'todas'}_${per}.xlsx`;
   const buf=XLSX.write(wb,{type:'array',bookType:'xlsx'}),d=await dlP;
   if(d==='local'){const u=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));const l=document.createElement('a');l.href=u;l.download=fn;l.click();return xmsg('Excel generado: '+fn)}
   try{await d.save({filename:fn,data:new Uint8Array(buf)});xmsg('Excel generado: '+fn)}catch(e){if(e&&e.code==='declined')return;xmsg('No se pudo guardar el archivo en esta vista.',true)}

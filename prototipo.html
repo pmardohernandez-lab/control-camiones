@@ -1,5 +1,5 @@
 <!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Control de Camiones</title>
+<title>Green Control Camiones</title>
 <meta name="claude:viewport-fit-sides" content="cover"><style>body{margin:0}</style></head><body>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
@@ -141,7 +141,7 @@ tr.dif td{background:var(--bad-bg)}
 
   <div class="bar">
     <div class="bar-top">
-      <div><h1>Control de Camiones</h1><div class="obra" id="obraLbl"></div></div>
+      <div><h1>Green Control Camiones</h1><div class="obra" id="obraLbl"></div></div>
       <button class="net" id="net" aria-label="Cambiar estado de señal"><span class="dot"></span><span id="netTxt"></span></button>
     </div>
     <div class="tabs" role="tablist" id="tabs">
@@ -515,7 +515,7 @@ $('xlsBtn').onclick=async()=>{
   const info=[{Campo:'Obra',Valor:OBRA},{Campo:'Desde',Valor:a?isoToF(a):'Inicio'},{Campo:'Hasta',Valor:b?isoToF(b):'Hoy'},{Campo:'Patente',Valor:p||'Todas'},{Campo:'Generado',Valor:`${fmtF(new Date())} ${fmtH(new Date())}`}];
   add(info,'Filtros',[10,40]);
   const buf=XLSX.write(wb,{type:'array',bookType:'xlsx'});
-  const fname=`viajes_botadero_${a||'inicio'}_a_${b||'hoy'}${p?'_'+p:''}.xlsx`;
+  const fname=`green_control_camiones_${a||'inicio'}_a_${b||'hoy'}${p?'_'+p:''}.xlsx`;
   const d=await dlP;
   if(d==='local'){const u=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));const l=document.createElement('a');l.href=u;l.download=fname;l.click();return msg(`Excel generado: ${fname}`)}
   try{await d.save({filename:fname,data:new Uint8Array(buf)});msg(`Excel generado: ${fname}`)}
@@ -536,4 +536,4 @@ S.dev=(/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacI
 setRango('7');renderDev();setTab('reg');
 })();
 </script>
-</html>
+</body></html>
