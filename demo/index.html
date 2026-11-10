@@ -29,6 +29,39 @@ tr.anul td{text-decoration:line-through;color:#999}
 .intro{background:#e8f5e9;border-left:5px solid #2e7d32;padding:10px;border-radius:4px}
 #demoFin{position:fixed;inset:0;background:#f2f4f3;z-index:50;padding:24px 16px;overflow:auto}
 #demoFin .box{max-width:460px;margin:0 auto;background:#fff;border-radius:8px;padding:20px;box-shadow:0 1px 4px #0003}
+/* ---- Estado de pago ---- */
+.ep-doc{background:#fff;color:#111;margin-top:14px;padding:22px 20px;border-radius:6px;box-shadow:0 1px 4px #0003;font-size:13px;line-height:1.4}
+.ep-doc .eh{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;border-bottom:3px solid #2e7d32;padding-bottom:10px;flex-wrap:wrap}
+.ep-doc .eh img{max-height:52px;display:block;margin-bottom:4px}
+.ep-doc .emp b{font-size:15px}
+.ep-doc .tit{text-align:right}
+.ep-doc .tit h2{margin:0;font-size:20px;letter-spacing:.04em;color:#1b5e20}
+.ep-doc .datos{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin:12px 0}
+.ep-doc .datos span{color:#555}
+.ep-doc table{font-size:12px;margin-top:6px}
+.ep-doc th{background:#e8f5e9;text-align:left}
+.ep-doc td.n,.ep-doc th.n{text-align:right;font-variant-numeric:tabular-nums}
+.ep-doc tr.dup td{color:#999;text-decoration:line-through}
+.ep-tot{display:flex;justify-content:space-between;gap:16px;margin-top:12px;flex-wrap:wrap}
+.ep-tot table{width:auto;min-width:240px}
+.ep-tot td{border:1px solid #ccc;padding:5px 10px}
+.ep-tot tr.total td{font-weight:bold;background:#e8f5e9;font-size:14px}
+.ep-nota{font-size:11.5px;color:#444;margin-top:10px}
+.ep-firmas{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:60px;text-align:center;font-size:12px}
+.ep-firmas div{border-top:1px solid #111;padding-top:6px}
+.ep-firmas small{display:block;color:#555;margin-top:2px}
+.ep-pie{margin-top:26px;font-size:10.5px;color:#777;text-align:center}
+.ep-warn{background:#fff3cd;color:#664d03;padding:8px 10px;border-radius:4px;margin-top:10px;font-size:12.5px}
+@media print{
+ @page{size:A4;margin:14mm}
+ body{background:#fff}
+ header,nav,#demoBanner,#demoFin,.no-print,section:not(#ep){display:none!important}
+ #ep{display:block!important;padding:0}
+ .ep-doc{box-shadow:none;margin:0;padding:0 2px;border-radius:0}
+ .ep-doc tr{break-inside:avoid}
+ .ep-firmas,.ep-tot{break-inside:avoid}
+ .ep-warn{display:none}
+}
 </style>
 </head>
 <body>
@@ -45,6 +78,7 @@ tr.anul td{text-decoration:line-through;color:#999}
 <button onclick="tab('hist',this)">Historial</button>
 <button onclick="tabAdm('aud',this)">Auditor</button>
 <button onclick="tabAdm('rep',this)">Reportes</button>
+<button onclick="tabAdm('ep',this)">Estado de Pago</button>
 <button onclick="tabAdm('cam',this)">Camiones</button>
 <button onclick="tabAdm('emp',this)">Empresa</button>
 <button onclick="tabAdm('conf',this)">Config</button>
@@ -105,6 +139,19 @@ tr.anul td{text-decoration:line-through;color:#999}
 <h4>Por día</h4><div id="repDia"></div>
 <h4>Por patente</h4><div id="repPat"></div>
 <h4>Detalle</h4><div id="repDet"></div>
+</section>
+
+<section id="ep">
+<div class="no-print">
+<h3>Estado de pago</h3>
+<label>Desde</label><input id="epDesde" type="date" onchange="renderEP()">
+<label>Hasta</label><input id="epHasta" type="date" onchange="renderEP()">
+<label>Transportista (dueño del camión)</label><select id="epTra" onchange="epPatentes();renderEP()"></select>
+<label>Patente</label><select id="epPat" onchange="renderEP()"></select>
+<label>Valor neto por viaje ($)</label><input id="epValor" type="text" inputmode="numeric" placeholder="Ej: 85.000" oninput="epValorInput(this)">
+<button class="btn" onclick="imprimirEP()">Imprimir estado de pago</button>
+</div>
+<div id="epDoc" class="ep-doc"></div>
 </section>
 
 <section id="cam">
@@ -187,7 +234,7 @@ function guardarEmpresa(){
 function navBtn(id){return document.querySelector(`nav button[onclick*="'${id}'"]`);}
 
 function bitacora(acc,det){log.push({t:new Date().toISOString(),acc,det});SS('log',log);}
-function tab(id,b){if(id==='emp')EMP.forEach(([i,k])=>$(i).value=empresa[k]||'');if(stream&&id!=='reg')cerrarCam();document.querySelectorAll('section').forEach(s=>s.classList.remove('on'));$(id).classList.add('on');
+function tab(id,b){if(id==='ep')setTimeout(renderEP,0);if(id==='emp')EMP.forEach(([i,k])=>$(i).value=empresa[k]||'');if(stream&&id!=='reg')cerrarCam();document.querySelectorAll('section').forEach(s=>s.classList.remove('on'));$(id).classList.add('on');
  document.querySelectorAll('nav button').forEach(x=>x.classList.remove('on'));b.classList.add('on');render();}
 function tabAdm(id,b){if(!admOK){const p=prompt('Clave administrador/auditor');if(p!==conf.pin){alert('Clave incorrecta');bitacora('Acceso denegado',id);return;}admOK=true;}tab(id,b);}
 
@@ -222,7 +269,7 @@ function render(){
  $('oPos').value=conf.lat!=null?`${conf.lat}, ${conf.lng}`:'';
  $('empHdr').textContent=empresa.raz?(empresa.fan||empresa.raz)+(conf.obra?' · '+conf.obra:''):'';
  if(empresa.logo){$('eLogoPrev').src=empresa.logo;$('eLogoPrev').style.display='block';}
- renderAlertas();renderRep();estado();
+ renderAlertas();renderRep();if($('ep').classList.contains('on'))renderEP();estado();
 }
 function renderAlertas(){
  const items=[];
@@ -340,6 +387,77 @@ function exportarExcel(){
  add([{Campo:'Empresa',Valor:empresa.raz||''},{Campo:'RUT empresa',Valor:empresa.rut||''},{Campo:'Obra',Valor:conf.obra},{Campo:'Desde',Valor:a?isoAF(a):'Inicio'},{Campo:'Hasta',Valor:b?isoAF(b):'Hoy'},{Campo:'Patente',Valor:p||'Todas'},{Campo:'Generado',Valor:new Date().toLocaleString('es-CL')}],'Filtros',[10,40]);
  XLSX.writeFile(wb,`green_control_camiones_${a||'inicio'}_a_${b||'hoy'}${p?'_'+p:''}.xlsx`);
  bitacora('Exporta Excel',`${a}..${b} ${p||'todas'}`);
+}
+// ---- Estado de pago ----
+const fmt$=n=>'$ '+Math.round(n).toLocaleString('es-CL');
+const fmtN=n=>Number(n).toLocaleString('es-CL');
+let epHist=LS('epHist')||[], epValores=LS('epValores')||{};
+function epInit(){if(!$('epHasta').value){const h=new Date(),d=new Date(h);d.setDate(1);$('epDesde').value=isoDia(d);$('epHasta').value=isoDia(h);}}
+function epTransportistas(){const m={};camiones.forEach(c=>{if(c.tra)m[c.tra]=c.rut||m[c.tra]||''});viajes.forEach(v=>{if(v.tra&&!(v.tra in m))m[v.tra]=v.rut||''});return m;}
+function epPatentes(){const t=$('epTra').value,cur=$('epPat').value;
+ const pats=[...new Set(camiones.filter(c=>!t||c.tra===t).map(c=>c.pat).concat(viajes.filter(v=>!t||v.tra===t).map(v=>v.pat)))].sort();
+ $('epPat').innerHTML='<option value="">Todas las patentes'+(t?' del transportista':'')+'</option>'+pats.map(p=>`<option>${p}</option>`).join('');
+ if(pats.includes(cur))$('epPat').value=cur;}
+function epKey(){return [$('epDesde').value,$('epHasta').value,$('epTra').value,$('epPat').value].join('|');}
+function epValorKey(){return $('epTra').value+'|'+$('epPat').value;}
+function epValorInput(el){const n=Number(el.value.replace(/\D/g,''))||0;el.value=n?fmtN(n):'';epValores[epValorKey()]=n;SS('epValores',epValores);renderEP();}
+function epViajes(){const a=$('epDesde').value,b=$('epHasta').value,t=$('epTra').value,p=$('epPat').value;
+ return viajes.filter(v=>{const d=diaDe(v);return(!a||d>=a)&&(!b||d<=b)&&(!t||v.tra===t)&&(!p||v.pat===p);}).sort((x,y)=>new Date(x.ts)-new Date(y.ts));}
+function renderEP(){
+ if(!$('epTra').options.length||$('epTra').dataset.n!==String(Object.keys(epTransportistas()).length)){
+  const cur=$('epTra').value,m=epTransportistas();$('epTra').dataset.n=Object.keys(m).length;
+  $('epTra').innerHTML='<option value="">-- seleccione --</option>'+Object.keys(m).sort().map(t=>`<option>${t}</option>`).join('');$('epTra').value=cur;epPatentes();}
+ epInit();
+ const t=$('epTra').value,p=$('epPat').value;
+ if(!t&&!p){$('epDoc').innerHTML='<p>Seleccione el transportista (dueño del camión) para preparar su estado de pago.</p>';return;}
+ const val=epValores[epValorKey()]||0;$('epValor').value=val?fmtN(val):'';
+ const key=epKey(),prev=epHist.find(h=>h.key===key);
+ const otros={};epHist.filter(h=>h.key!==key).forEach(h=>h.folios.forEach(f=>otros[f]=h.num));
+ const lista=epViajes(),anul=lista.filter(v=>v.anulado),vig=lista.filter(v=>!v.anulado);
+ const ok=vig.filter(v=>!otros[v.folio]),dup=vig.filter(v=>otros[v.folio]);
+ const m3=ok.reduce((s,v)=>s+Number(v.cap),0),neto=val*ok.length,iva=Math.round(neto*0.19),total=neto+iva;
+ const rutTra=epTransportistas()[t]||(lista[0]&&lista[0].rut)||'';
+ const pats=[...new Set(ok.map(v=>v.pat))].join(', ')||p||'-';
+ const hoy=new Date();
+ $('epDoc').innerHTML=`
+ <div class="eh"><div class="emp">${empresa.logo?`<img src="${empresa.logo}" alt="">`:''}<b>${empresa.raz||''}</b><br>RUT ${empresa.rut||''}${empresa.giro?'<br>'+empresa.giro:''}${empresa.dir?'<br>'+empresa.dir+(empresa.com?', '+empresa.com:''):''}</div>
+ <div class="tit"><h2>ESTADO DE PAGO</h2><div>N° <b>${prev?prev.num:'(se asigna al imprimir)'}</b></div><div>Emisión: ${hoy.toLocaleDateString('es-CL')}</div></div></div>
+ <div class="datos">
+  <span>Obra</span><b>${conf.obra||''}</b>
+  <span>Transportista</span><b>${t||'-'}</b>
+  <span>RUT transportista</span><b>${rutTra||'-'}</b>
+  <span>Patente(s)</span><b>${pats}</b>
+  <span>Periodo</span><b>${$('epDesde').value?isoAF($('epDesde').value):'inicio'} al ${$('epHasta').value?isoAF($('epHasta').value):'hoy'}</b>
+ </div>
+ ${dup.length?`<div class="ep-warn">${dup.length} viaje(s) de este periodo ya están en otro estado de pago (${[...new Set(dup.map(v=>otros[v.folio]))].join(', ')}). Aparecen tachados y no se suman, para no pagarlos dos veces.</div>`:''}
+ <table><tr><th>#</th><th>Comprobante</th><th>Fecha</th><th>Hora</th><th>Patente</th><th>Chofer</th><th class="n">m³</th></tr>
+ ${ok.map((v,i)=>`<tr><td>${i+1}</td><td>${v.folio}</td><td>${isoAF(diaDe(v))}</td><td>${v.hora}</td><td>${v.pat}</td><td>${v.cho||''}</td><td class="n">${fmtN(v.cap)}</td></tr>`).join('')}
+ ${dup.map(v=>`<tr class="dup"><td></td><td>${v.folio}</td><td>${isoAF(diaDe(v))}</td><td>${v.hora}</td><td>${v.pat}</td><td>En ${otros[v.folio]}</td><td class="n">${fmtN(v.cap)}</td></tr>`).join('')}
+ ${ok.length||dup.length?'':'<tr><td colspan="7">No hay viajes en este periodo.</td></tr>'}
+ </table>
+ <div class="ep-tot">
+  <table><tr><td>Total viajes</td><td class="n"><b>${ok.length}</b></td></tr><tr><td>Total m³</td><td class="n"><b>${fmtN(m3)}</b></td></tr></table>
+  <table><tr><td>Valor neto por viaje</td><td class="n">${val?fmt$(val):'<i>ingresar valor</i>'}</td></tr>
+   <tr><td>Total neto</td><td class="n">${fmt$(neto)}</td></tr><tr><td>IVA (19%)</td><td class="n">${fmt$(iva)}</td></tr>
+   <tr class="total"><td>TOTAL A FACTURAR</td><td class="n">${fmt$(total)}</td></tr></table>
+ </div>
+ <div class="ep-nota">El transportista debe emitir su factura por el total indicado, a nombre de ${empresa.raz||'la empresa'} (RUT ${empresa.rut||''}), haciendo referencia a este estado de pago.${anul.length?` No se incluyen ${anul.length} viaje(s) anulado(s).`:''}</div>
+ <div class="ep-firmas">
+  <div>Firma conforme<br><b>Dueño del camión / Transportista</b><small>Nombre: ______________________</small><small>RUT: ______________ Fecha: ________</small></div>
+  <div>Firma conforme<br><b>Administrador de obra</b><small>Nombre: ______________________</small><small>Fecha: ________</small></div>
+ </div>
+ <div class="ep-pie">Generado con Green Control Camiones · ${hoy.toLocaleString('es-CL')}</div>`;
+}
+function imprimirEP(){
+ const t=$('epTra').value,p=$('epPat').value;if(!t&&!p)return alert('Seleccione el transportista');
+ if(!(epValores[epValorKey()]>0))return alert('Ingrese el valor neto por viaje');
+ const key=epKey();let h=epHist.find(x=>x.key===key);
+ const otros=new Set();epHist.filter(x=>x.key!==key).forEach(x=>x.folios.forEach(f=>otros.add(f)));
+ const folios=epViajes().filter(v=>!v.anulado&&!otros.has(v.folio)).map(v=>v.folio);
+ if(!folios.length)return alert('No hay viajes para incluir en este estado de pago');
+ if(!h){conf.epSeq=(conf.epSeq||0)+1;SS('conf',conf);h={num:'EP-'+String(conf.epSeq).padStart(4,'0'),key,folios,fecha:new Date().toISOString()};epHist.push(h);}
+ else h.folios=folios;
+ SS('epHist',epHist);bitacora('Emite estado de pago',h.num+' '+t+' '+p);renderEP();setTimeout(()=>window.print(),300);
 }
 function exportar(lista){
  const cols=['folio','fecha','hora','pat','tra','rut','cho','cap','obs','empresa','rutEmp','obra','chk','lat','lng','alertas','anulado','motivo','sync'];
